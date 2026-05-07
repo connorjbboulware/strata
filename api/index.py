@@ -3,8 +3,11 @@ import os
 from typing import Literal
 
 import psycopg
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+load_dotenv()
 
 app = FastAPI(title="Strata API")
 
@@ -21,7 +24,7 @@ def health() -> HealthResponse:
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
         try:
-            with psycopg.connect(db_url, connect_timeout=3) as conn:
+            with psycopg.connect(db_url, connect_timeout=10) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1")
                     cur.fetchone()

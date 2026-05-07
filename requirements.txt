@@ -65,6 +65,8 @@ python-dateutil==2.9.0.post0
     # via
     #   strata (pyproject.toml)
     #   pandas
+python-dotenv==1.2.2
+    # via strata (pyproject.toml)
 pytz==2026.2
     # via yfinance
 requests==2.33.1
