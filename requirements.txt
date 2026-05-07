@@ -37,7 +37,7 @@ numpy==2.4.4
     #   strata (pyproject.toml)
     #   pandas
     #   yfinance
-pandas==3.0.2
+pandas==2.3.3
     # via
     #   strata (pyproject.toml)
     #   yfinance
@@ -51,6 +51,8 @@ psycopg==3.3.4
     # via strata (pyproject.toml)
 psycopg-binary==3.3.4
     # via psycopg
+psycopg-pool==3.3.1
+    # via strata (pyproject.toml)
 pycparser==3.0
     # via cffi
 pydantic==2.13.4
@@ -68,7 +70,9 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
     # via strata (pyproject.toml)
 pytz==2026.2
-    # via yfinance
+    # via
+    #   pandas
+    #   yfinance
 requests==2.33.1
     # via yfinance
 rich==15.0.0
@@ -85,6 +89,7 @@ typing-extensions==4.15.0
     #   beautifulsoup4
     #   fastapi
     #   psycopg
+    #   psycopg-pool
     #   pydantic
     #   pydantic-core
     #   starlette
@@ -93,6 +98,8 @@ typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
+tzdata==2026.2
+    # via pandas
 urllib3==2.6.3
     # via requests
 websockets==16.0
