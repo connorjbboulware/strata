@@ -34,8 +34,14 @@ def get_prices(
                     fresh = fetch_prices(symbol, gap_start, gap_end)
                     upsert_prices(symbol, fresh)
                     fetched_parts.append(fresh)
-                except DataUnavailable as exc:
-                    warnings.append(f"{symbol}: {exc}")
+                except DataUnavailable:
+                    # Don't warn yet — a gap-fetch failure is only a problem if it
+                    # leaves the symbol with no usable data. The .empty check below
+                    # is the canonical "this symbol is unusable" signal. Per-gap
+                    # warnings would fire spuriously when (a) the cache already has
+                    # most of the requested range and (b) yfinance can't fill a
+                    # tail gap (e.g. today's not-yet-closed bar).
+                    pass
             if fetched_parts:
                 cached = pd.concat([cached] + fetched_parts, ignore_index=True)
                 cached = (

@@ -1,14 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import type {
   BacktestRequest,
   RebalanceFrequency,
   StrategyRequest,
 } from '@/lib/types';
+import { buildPreset } from '@/lib/presets';
 
 const TICKER_RE = /^[A-Z0-9]{1,10}$/;
-const STORAGE_KEY = 'strata:lastRequest';
+// v2: bumped when default form shape changes — old entries become invisible
+const STORAGE_KEY = 'strata:lastRequest:v2';
 
 interface FormState {
   name: string;
@@ -33,9 +41,28 @@ function isoMinusDays(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function defaultState(): FormState {
+function requestToFormState(req: BacktestRequest, fallback: FormState): FormState {
+  const s = req.strategies[0];
+  if (!s) return fallback;
+  const isCustom = Array.isArray(s.weights);
   return {
-    name: 'My Strategy',
+    name: s.name,
+    tickers: s.tickers,
+    tickerInput: '',
+    weightsMode: isCustom ? 'custom' : 'equal',
+    customPercents: isCustom ? (s.weights as number[]).map((w) => w * 100) : [],
+    startDate: s.start_date,
+    endDate: s.end_date,
+    initialCapital: s.initial_capital,
+    rebalance: s.rebalance_frequency,
+    benchmark: req.benchmark,
+  };
+}
+
+function defaultState(): FormState {
+  // Mount with the Mag 7 demo so the form is meaningful out of the box.
+  return requestToFormState(buildPreset('mag7'), {
+    name: 'Magnificent 7',
     tickers: [],
     tickerInput: '',
     weightsMode: 'equal',
@@ -45,7 +72,7 @@ function defaultState(): FormState {
     initialCapital: 10000,
     rebalance: 'monthly',
     benchmark: 'SPY',
-  };
+  });
 }
 
 function loadFromStorage(): FormState | null {
@@ -54,21 +81,7 @@ function loadFromStorage(): FormState | null {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const req: BacktestRequest = JSON.parse(raw);
-    const s = req.strategies[0];
-    if (!s) return null;
-    const isCustom = Array.isArray(s.weights);
-    return {
-      name: s.name,
-      tickers: s.tickers,
-      tickerInput: '',
-      weightsMode: isCustom ? 'custom' : 'equal',
-      customPercents: isCustom ? (s.weights as number[]).map((w) => w * 100) : [],
-      startDate: s.start_date,
-      endDate: s.end_date,
-      initialCapital: s.initial_capital,
-      rebalance: s.rebalance_frequency,
-      benchmark: req.benchmark,
-    };
+    return requestToFormState(req, defaultState());
   } catch {
     return null;
   }
@@ -112,20 +125,41 @@ function validate(s: FormState): Errors {
   return e;
 }
 
+export interface StrategyFormHandle {
+  /** Replace the form's state with the values from a preset / past request. */
+  applyRequest: (req: BacktestRequest) => void;
+}
+
 interface Props {
   onSubmit: (req: BacktestRequest) => Promise<void> | void;
   loading: boolean;
 }
 
-export default function StrategyForm({ onSubmit, loading }: Props) {
+const StrategyForm = forwardRef<StrategyFormHandle, Props>(function StrategyForm(
+  { onSubmit, loading },
+  ref,
+) {
   const [s, setS] = useState<FormState>(defaultState);
   const [touched, setTouched] = useState(false);
 
-  // Hydrate from sessionStorage on mount (avoids SSR hydration mismatch)
+  // Hydrate from sessionStorage on mount (avoids SSR hydration mismatch).
+  // Old-shape entries are ignored because STORAGE_KEY is versioned.
   useEffect(() => {
     const saved = loadFromStorage();
     if (saved) setS(saved);
   }, []);
+
+  // Imperative handle so the parent can force-load a preset
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyRequest: (req: BacktestRequest) => {
+        setS((prev) => requestToFormState(req, prev));
+        setTouched(false);
+      },
+    }),
+    [],
+  );
 
   // Keep customPercents synced to ticker length when in custom mode
   useEffect(() => {
@@ -200,9 +234,10 @@ export default function StrategyForm({ onSubmit, loading }: Props) {
     e.preventDefault();
     setTouched(true);
     if (!valid || loading) return;
-    // Flush any unsubmitted ticker text into the chip list
     const pendingTickers =
-      s.tickerInput.trim() && addTicker(s.tickerInput) ? [...s.tickers, s.tickerInput.trim().toUpperCase()] : s.tickers;
+      s.tickerInput.trim() && addTicker(s.tickerInput)
+        ? [...s.tickers, s.tickerInput.trim().toUpperCase()]
+        : s.tickers;
     const strategy: StrategyRequest = {
       name: s.name.trim(),
       tickers: pendingTickers,
@@ -458,7 +493,9 @@ export default function StrategyForm({ onSubmit, loading }: Props) {
       </button>
     </form>
   );
-}
+});
+
+export default StrategyForm;
 
 function Spinner() {
   return (

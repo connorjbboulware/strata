@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import StrategyForm from '@/components/StrategyForm';
+import { useEffect, useRef, useState } from 'react';
+import StrategyForm, { type StrategyFormHandle } from '@/components/StrategyForm';
 import ResultsPanel from '@/components/ResultsPanel';
 import EmptyState from '@/components/EmptyState';
 import LoadingState from '@/components/LoadingState';
 import ErrorState from '@/components/ErrorState';
 import { ApiError, getHealth, runBacktest } from '@/lib/api';
 import type { BacktestRequest, BacktestResponse } from '@/lib/types';
+import { buildPreset, type PresetKey } from '@/lib/presets';
 
-const STORAGE_KEY = 'strata:lastRequest';
+const STORAGE_KEY = 'strata:lastRequest:v2';
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function Page() {
@@ -18,6 +19,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [lastRequest, setLastRequest] = useState<BacktestRequest | null>(null);
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'down'>('checking');
+  const formRef = useRef<StrategyFormHandle>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +55,12 @@ export default function Page() {
     }
   }
 
+  function handleSelectPreset(key: PresetKey) {
+    const req = buildPreset(key);
+    formRef.current?.applyRequest(req);
+    void handleSubmit(req);
+  }
+
   function handleRetry() {
     if (lastRequest) void handleSubmit(lastRequest);
   }
@@ -75,11 +83,17 @@ export default function Page() {
       <main className="flex-1 px-5 py-6 sm:px-8 lg:py-8">
         <div className="mx-auto grid max-w-[1400px] gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="rounded-xl border border-rule bg-panel/40 p-5">
-            <StrategyForm onSubmit={handleSubmit} loading={status === 'loading'} />
+            <StrategyForm
+              ref={formRef}
+              onSubmit={handleSubmit}
+              loading={status === 'loading'}
+            />
           </aside>
 
           <section className="min-w-0">
-            {status === 'idle' && <EmptyState />}
+            {status === 'idle' && (
+              <EmptyState onSelectPreset={handleSelectPreset} />
+            )}
             {status === 'loading' && <LoadingState />}
             {status === 'error' && (
               <ErrorState message={error ?? 'Unknown error'} onRetry={handleRetry} />
