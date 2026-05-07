@@ -477,20 +477,22 @@ const StrategyForm = forwardRef<StrategyFormHandle, Props>(function StrategyForm
         {showError('benchmark')}
       </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={loading || (!valid && touched)}
-        className="button-primary mt-2"
-      >
-        {loading ? (
-          <>
-            <Spinner /> Running…
-          </>
-        ) : (
-          'Run backtest'
-        )}
-      </button>
+      {/* Submit — sticky to viewport bottom so it's always reachable */}
+      <div className="sticky bottom-0 z-20 -mx-5 -mb-5 mt-3 rounded-b-xl border-t border-rule bg-surface px-6 py-4">
+        <button
+          type="submit"
+          disabled={loading || (!valid && touched)}
+          className="button-primary"
+        >
+          {loading ? (
+            <>
+              <Spinner /> Running…
+            </>
+          ) : (
+            'Run backtest'
+          )}
+        </button>
+      </div>
     </form>
   );
 });
