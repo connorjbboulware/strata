@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  /* Hex form for direct CSS usage: var(--accent), stroke="var(--accent)" etc. */
   --bg: #0a0908;
   --bg-elevated: #14110f;
   --border: #2a2522;
@@ -10,8 +11,20 @@
   --text-secondary: #a39d92;
   --text-tertiary: #6b665e;
   --accent: #c9785f;
+  --accent-hover: #b86d57;
   --positive: #6fa66f;
   --negative: #c46b6b;
+
+  /* RGB-triplet form for Tailwind's opacity modifiers (bg-accent/10, etc.) */
+  --bg-rgb: 10 9 8;
+  --bg-elevated-rgb: 20 17 15;
+  --border-rgb: 42 37 34;
+  --text-primary-rgb: 245 241 234;
+  --text-secondary-rgb: 163 157 146;
+  --text-tertiary-rgb: 107 102 94;
+  --accent-rgb: 201 120 95;
+  --positive-rgb: 111 166 111;
+  --negative-rgb: 196 107 107;
 }
 
 html,
@@ -26,11 +39,67 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+
+  /* Subtle warm grain on the body — barely-there, lifts the flat #0a0908 */
+  background-image: radial-gradient(
+      ellipse at 20% 0%,
+      rgba(201, 120, 95, 0.025) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 100% 100%,
+      rgba(201, 120, 95, 0.015) 0%,
+      transparent 50%
+    );
+  background-attachment: fixed;
 }
 
-/* Layered geological strata — fixed bottom band, fades into surface.
-   Earth tones sampled at low alpha so the layers feel sedimentary,
-   not decorative. Pure CSS, no images. */
+/* Native date inputs in dark mode get a colorful Chrome-default
+   indicator; tone it down to fit the palette. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) brightness(0.9);
+  cursor: pointer;
+  opacity: 0.6;
+}
+input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Hide the native number-input spinners — they don't belong with this typography */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+@layer components {
+  .form-input {
+    @apply w-full rounded-lg border border-rule bg-panel px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint outline-none transition-shadow;
+  }
+  .form-input:focus {
+    @apply ring-1 ring-accent border-accent;
+  }
+  .form-label {
+    @apply text-[10px] uppercase tracking-[0.16em] text-ink-muted font-sans;
+  }
+  .button-primary {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-surface transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .button-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+  .button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-rule bg-panel px-4 py-2 text-sm text-ink transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .button-secondary:hover:not(:disabled) {
+    border-color: rgb(var(--accent-rgb) / 0.4);
+  }
+}
+
+/* Original placeholder strata visual — kept for the EmptyState's mini variant. */
 .strata-bands {
   position: absolute;
   inset: auto 0 0 0;
@@ -53,20 +122,4 @@ body {
     rgba(139, 90, 60, 0.06) 88%,
     rgba(139, 90, 60, 0.06) 100%
   );
-}
-
-/* Fine sediment grain — 1px horizontal lines at very low alpha,
-   suggests bedding planes without looking like a CRT scanline. */
-.strata-bands::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 3px,
-    rgba(245, 241, 234, 0.012) 3px,
-    rgba(245, 241, 234, 0.012) 4px
-  );
-  pointer-events: none;
 }

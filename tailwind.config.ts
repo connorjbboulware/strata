@@ -15,17 +15,19 @@ const config: Config = {
         mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       colors: {
-        surface: 'var(--bg)',
-        panel: 'var(--bg-elevated)',
-        rule: 'var(--border)',
+        // RGB-triplet form so Tailwind's opacity modifiers (bg-accent/10) work.
+        // Hex equivalents in :root remain available for direct CSS usage.
+        surface: 'rgb(var(--bg-rgb) / <alpha-value>)',
+        panel: 'rgb(var(--bg-elevated-rgb) / <alpha-value>)',
+        rule: 'rgb(var(--border-rgb) / <alpha-value>)',
         ink: {
-          DEFAULT: 'var(--text-primary)',
-          muted: 'var(--text-secondary)',
-          faint: 'var(--text-tertiary)',
+          DEFAULT: 'rgb(var(--text-primary-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--text-secondary-rgb) / <alpha-value>)',
+          faint: 'rgb(var(--text-tertiary-rgb) / <alpha-value>)',
         },
-        accent: 'var(--accent)',
-        positive: 'var(--positive)',
-        negative: 'var(--negative)',
+        accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
+        positive: 'rgb(var(--positive-rgb) / <alpha-value>)',
+        negative: 'rgb(var(--negative-rgb) / <alpha-value>)',
       },
     },
   },
