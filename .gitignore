@@ -141,3 +141,16 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Vercel
+.vercel

@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0908;
+  --bg-elevated: #14110f;
+  --border: #2a2522;
+  --text-primary: #f5f1ea;
+  --text-secondary: #a39d92;
+  --text-tertiary: #6b665e;
+  --accent: #c9785f;
+  --positive: #6fa66f;
+  --negative: #c46b6b;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Layered geological strata — fixed bottom band, fades into surface.
+   Earth tones sampled at low alpha so the layers feel sedimentary,
+   not decorative. Pure CSS, no images. */
+.strata-bands {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42vh;
+  pointer-events: none;
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 18%,
+    rgba(112, 128, 144, 0.035) 20%,
+    rgba(112, 128, 144, 0.035) 27%,
+    rgba(180, 130, 60, 0.05) 29%,
+    rgba(180, 130, 60, 0.05) 41%,
+    rgba(139, 90, 60, 0.07) 43%,
+    rgba(139, 90, 60, 0.07) 58%,
+    rgba(101, 67, 33, 0.08) 60%,
+    rgba(101, 67, 33, 0.08) 74%,
+    rgba(180, 130, 60, 0.05) 76%,
+    rgba(180, 130, 60, 0.05) 86%,
+    rgba(139, 90, 60, 0.06) 88%,
+    rgba(139, 90, 60, 0.06) 100%
+  );
+}
+
+/* Fine sediment grain — 1px horizontal lines at very low alpha,
+   suggests bedding planes without looking like a CRT scanline. */
+.strata-bands::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(245, 241, 234, 0.012) 3px,
+    rgba(245, 241, 234, 0.012) 4px
+  );
+  pointer-events: none;
+}
