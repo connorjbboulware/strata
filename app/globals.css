@@ -99,6 +99,93 @@ input[type='number'] {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Splash screen
+   --------------------------------------------------------------------------- */
+
+@keyframes strata-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes strata-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.splash-wordmark {
+  animation: strata-fade-up 600ms ease-out backwards;
+}
+.splash-tagline {
+  animation: strata-fade-up 600ms ease-out 200ms backwards;
+}
+.splash-link {
+  animation: strata-fade-up 600ms ease-out 400ms backwards;
+}
+
+.splash-bands {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 65vh;
+  pointer-events: none;
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 8%,
+    rgba(58, 53, 48, 0.42) 10%,    /* deep slate */
+    rgba(58, 53, 48, 0.42) 16%,
+    transparent 16%,
+    transparent 19%,
+    rgba(74, 51, 40, 0.46) 21%,    /* umber */
+    rgba(74, 51, 40, 0.46) 32%,
+    transparent 32%,
+    transparent 35%,
+    rgba(94, 58, 47, 0.40) 37%,    /* burnt sienna */
+    rgba(94, 58, 47, 0.40) 48%,
+    transparent 48%,
+    transparent 51%,
+    rgba(122, 90, 61, 0.34) 53%,   /* ochre */
+    rgba(122, 90, 61, 0.34) 63%,
+    transparent 63%,
+    transparent 66%,
+    rgba(139, 90, 60, 0.44) 68%,   /* burnt sienna 2 */
+    rgba(139, 90, 60, 0.44) 78%,
+    transparent 78%,
+    transparent 81%,
+    rgba(90, 77, 64, 0.38) 83%,    /* warm gray */
+    rgba(90, 77, 64, 0.38) 94%,
+    transparent 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 95%, transparent 100%);
+  animation: strata-fade-in 1200ms ease-out backwards;
+}
+
+.splash-bands::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(245, 241, 234, 0.022) 3px,
+    rgba(245, 241, 234, 0.022) 4px
+  );
+  mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 95%, transparent 100%);
+}
+
+/* ---------------------------------------------------------------------------
+   Dashboard mount transition
+   --------------------------------------------------------------------------- */
+
+.dashboard-enter {
+  animation: strata-fade-in 200ms ease-out;
+}
+
 /* Original placeholder strata visual — kept for the EmptyState's mini variant. */
 .strata-bands {
   position: absolute;

@@ -3,7 +3,7 @@
 //   node scripts/screenshot.mjs <mode>        # one of: empty | loaded | comparison | tooltip | heatmap | mobile
 import puppeteer from 'puppeteer-core';
 
-const ALL = ['empty', 'loaded', 'comparison', 'tooltip', 'heatmap', 'mobile'];
+const ALL = ['splash', 'empty', 'loaded', 'comparison', 'tooltip', 'heatmap', 'mobile'];
 const requested = process.argv[2] ?? 'all';
 const modes = requested === 'all' ? ALL : [requested];
 
@@ -13,13 +13,27 @@ const CHROME_PATHS = [
 ];
 const executablePath = CHROME_PATHS.find(() => true);
 
-async function newPage(browser, viewport) {
+async function newPage(browser, viewport, { skipSplash = true } = {}) {
   const page = await browser.newPage();
   page.setDefaultTimeout(120000);
   await page.setViewport(viewport);
   await page.goto('http://localhost:3000/', { waitUntil: 'networkidle0', timeout: 30000 });
   await page.evaluate(() => sessionStorage.clear());
   await page.reload({ waitUntil: 'networkidle0', timeout: 30000 });
+  if (skipSplash) {
+    // Click "Enter →" if visible, then wait for the dashboard form to appear
+    await page.evaluate(() => {
+      const enter = Array.from(document.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Enter →'),
+      );
+      enter?.click();
+    });
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll('h2, label')).some((el) => el.textContent?.includes('Strategy name')),
+      { timeout: 10000 },
+    ).catch(() => {});
+    await new Promise((r) => setTimeout(r, 500));
+  }
   return page;
 }
 
@@ -50,6 +64,21 @@ const browser = await puppeteer.launch({
 
 try {
   for (const mode of modes) {
+    if (mode === 'splash') {
+      const page = await newPage(browser, { width: 1440, height: 900, deviceScaleFactor: 2 }, { skipSplash: false });
+      // Wait for the splash wordmark
+      await page.waitForFunction(
+        () => Array.from(document.querySelectorAll('h1')).some((el) => el.textContent?.trim() === 'Strata' && parseFloat(getComputedStyle(el).fontSize) > 80),
+        { timeout: 10000 },
+      ).catch(() => {});
+      // Hold long enough for the entrance animations to finish (~1.2s for bands)
+      await new Promise((r) => setTimeout(r, 1500));
+      await page.screenshot({ path: 'docs/screenshots/v1-splash.png', type: 'png', fullPage: false });
+      console.log('saved docs/screenshots/v1-splash.png');
+      await page.close();
+      continue;
+    }
+
     if (mode === 'empty') {
       const page = await newPage(browser, { width: 1440, height: 900, deviceScaleFactor: 2 });
       await page.waitForFunction(
