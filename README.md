@@ -4,16 +4,15 @@ Web-based portfolio backtester. Compose a strategy, run it against a decade of r
 
 ![Strata results panel](docs/screenshots/v1-loaded.png)
 
-**Live demo:** _placeholder — link goes here after Vercel deploy_
+**Live demo:** https://strata-brown.vercel.app/
 
-**Try a preset:**
-Copy any of the hashes below and append to the live demo URL (e.g. `https://strata.example.com/#config=…`).
+**Try a preset** (each link bypasses the splash and loads the strategy immediately):
 
-- **Mag 7 vs SPY** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6Ik1hZ25pZmljZW50IDciLCJ0aWNrZXJzIjpbIkFBUEwiLCJNU0ZUIiwiR09PR0wiLCJBTVpOIiwiTlZEQSIsIk1FVEEiLCJUU0xBIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE4LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6Im1vbnRobHkifV0sImJlbmNobWFyayI6IlNQWSJ9XX0`
-- **60/40 Classic** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IjYwLzQwIFBvcnRmb2xpbyIsInRpY2tlcnMiOlsiVlRJIiwiQk5EIl0sIndlaWdodHMiOlswLjYsMC40XSwic3RhcnRfZGF0ZSI6IjIwMTAtMDEtMDQiLCJlbmRfZGF0ZSI6IjIwMjYtMDUtMDciLCJpbml0aWFsX2NhcGl0YWwiOjEwMDAwLCJyZWJhbGFuY2VfZnJlcXVlbmN5IjoicXVhcnRlcmx5In1dLCJiZW5jaG1hcmsiOiJTUFkifV19`
-- **Sector Rotation** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IlNlY3RvciBSb3RhdGlvbiIsInRpY2tlcnMiOlsiWExLIiwiWExGIiwiWExFIiwiWExWIiwiWExJIiwiWExQIiwiWExZIiwiWExCIiwiWExVIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE1LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6InF1YXJ0ZXJseSJ9XSwiYmVuY2htYXJrIjoiU1BZIn1dfQ`
+- **Magnificent 7 vs SPY:** https://strata-brown.vercel.app/#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6Ik1hZ25pZmljZW50IDciLCJ0aWNrZXJzIjpbIkFBUEwiLCJNU0ZUIiwiR09PR0wiLCJBTVpOIiwiTlZEQSIsIk1FVEEiLCJUU0xBIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE4LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6Im1vbnRobHkifV0sImJlbmNobWFyayI6IlNQWSJ9XX0
+- **60/40 Classic:** https://strata-brown.vercel.app/#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IjYwLzQwIFBvcnRmb2xpbyIsInRpY2tlcnMiOlsiVlRJIiwiQk5EIl0sIndlaWdodHMiOlswLjYsMC40XSwic3RhcnRfZGF0ZSI6IjIwMTAtMDEtMDQiLCJlbmRfZGF0ZSI6IjIwMjYtMDUtMDciLCJpbml0aWFsX2NhcGl0YWwiOjEwMDAwLCJyZWJhbGFuY2VfZnJlcXVlbmN5IjoicXVhcnRlcmx5In1dLCJiZW5jaG1hcmsiOiJTUFkifV19
+- **Sector Rotation:** https://strata-brown.vercel.app/#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IlNlY3RvciBSb3RhdGlvbiIsInRpY2tlcnMiOlsiWExLIiwiWExGIiwiWExFIiwiWExWIiwiWExJIiwiWExQIiwiWExZIiwiWExCIiwiWExVIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE1LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6InF1YXJ0ZXJseSJ9XSwiYmVuY2htYXJrIjoiU1BZIn1dfQ
 
-(Regenerate any time with `uv run python scripts/build_share_links.py`.)
+(Regenerate the hashes any time with `uv run python scripts/build_share_links.py`.)
 
 ## What it does
 
