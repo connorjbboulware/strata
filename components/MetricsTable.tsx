@@ -1,7 +1,13 @@
 import type { BenchmarkResult, StrategyResult } from '@/lib/types';
 import { decimal, decimalSigned, pct, pctSigned } from '@/lib/format';
 
-const STRATEGY_COLORS = ['var(--accent)', '#5e8a8a', '#8a6e8a'];
+// Strategy line / dot colors. Hex literals — NOT `var(--accent)` — because
+// Lightweight Charts paints series colors directly onto a canvas, and canvas
+// paint values can't resolve CSS custom properties. Recharts works with var()
+// (it converts to inline style on the SVG), but LWC silently falls back to
+// black when it can't parse "var(--accent)". The first colour mirrors
+// `--accent` in `app/globals.css`; if you change the palette, change both.
+const STRATEGY_COLORS = ['#c9785f', '#5e8a8a', '#8a6e8a'];
 
 interface Props {
   results: StrategyResult[];
@@ -42,7 +48,7 @@ export default function MetricsTable({ results, benchmark, onRemove }: Props) {
                   <div className="flex items-center gap-2">
                     <span
                       className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: STRATEGY_COLORS[i] ?? 'var(--accent)' }}
+                      style={{ background: STRATEGY_COLORS[i] ?? STRATEGY_COLORS[0] }}
                     />
                     <span className="font-sans text-ink">{r.name}</span>
                   </div>
