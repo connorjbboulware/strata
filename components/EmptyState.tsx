@@ -81,7 +81,7 @@ export default function EmptyState({ onSelectPreset, disabled }: Props) {
           </p>
         </div>
 
-        <ul className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
+        <ul className="grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-3">
           {KEYS.map((k) => {
             const meta = PRESET_META[k];
             const isFlashing = flashing === k;

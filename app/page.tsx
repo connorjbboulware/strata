@@ -6,21 +6,34 @@ import ResultsPanel from '@/components/ResultsPanel';
 import EmptyState from '@/components/EmptyState';
 import LoadingState from '@/components/LoadingState';
 import ErrorState from '@/components/ErrorState';
+import Toast from '@/components/Toast';
 import { ApiError, getHealth, runBacktest } from '@/lib/api';
-import type { BacktestRequest, BacktestResponse } from '@/lib/types';
+import type {
+  BacktestRequest,
+  BenchmarkResult,
+  StrategyResult,
+} from '@/lib/types';
 import { buildPreset, type PresetKey } from '@/lib/presets';
+import { decodeHash, shareUrl, writeHash } from '@/lib/share';
 
 const STORAGE_KEY = 'strata:lastRequest:v2';
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function Page() {
   const [status, setStatus] = useState<Status>('idle');
-  const [result, setResult] = useState<BacktestResponse | null>(null);
+  const [results, setResults] = useState<StrategyResult[]>([]);
+  const [requests, setRequests] = useState<BacktestRequest[]>([]);
+  const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [lastRequest, setLastRequest] = useState<BacktestRequest | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [appendNext, setAppendNext] = useState(false);
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'down'>('checking');
+  const [toast, setToast] = useState<string | null>(null);
   const formRef = useRef<StrategyFormHandle>(null);
+  const hashHydratedRef = useRef(false);
 
+  // Health check
   useEffect(() => {
     let cancelled = false;
     getHealth()
@@ -36,33 +49,114 @@ export default function Page() {
     };
   }, []);
 
-  async function handleSubmit(req: BacktestRequest) {
-    setStatus('loading');
+  // Hydrate from URL hash on first mount
+  useEffect(() => {
+    if (hashHydratedRef.current) return;
+    hashHydratedRef.current = true;
+    if (typeof window === 'undefined') return;
+    const hashRequests = decodeHash(window.location.hash);
+    if (hashRequests && hashRequests.length > 0) {
+      void replayRequests(hashRequests);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync URL hash whenever requests change
+  useEffect(() => {
+    if (!hashHydratedRef.current) return;
+    writeHash(requests);
+  }, [requests]);
+
+  async function replayRequests(reqs: BacktestRequest[]) {
+    for (let i = 0; i < reqs.length && i < 3; i++) {
+      const req = reqs[i]!;
+      formRef.current?.applyRequest(req);
+      await runOne(req, { append: i > 0, replaceList: i === 0 });
+    }
+  }
+
+  async function runOne(
+    req: BacktestRequest,
+    opts: { append: boolean; replaceList?: boolean },
+  ) {
+    const isAppend = opts.append && results.length > 0 && results.length < 3;
+    const wasShowing = results.length > 0;
     setError(null);
-    setLastRequest(req);
+    setInlineError(null);
+    if (!wasShowing || opts.replaceList) {
+      setStatus('loading');
+    }
     try {
       const r = await runBacktest(req);
-      setResult(r);
-      setStatus('success');
-      try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(req));
-      } catch {
-        // ignore storage errors (private browsing, quota, etc.)
+      if (isAppend && benchmark) {
+        setResults((prev) => [...prev, ...r.results]);
+        setRequests((prev) => [...prev, req]);
+        // Keep existing benchmark; merge warnings (de-duplicate close-enough)
+        setWarnings((prev) => Array.from(new Set([...prev, ...r.warnings])));
+      } else {
+        setResults(r.results);
+        setRequests([req]);
+        setBenchmark(r.benchmark);
+        setWarnings(r.warnings);
       }
+      setStatus('success');
+      setAppendNext(false);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-      setStatus('error');
+      const msg = e instanceof ApiError ? e.message : String(e);
+      if (isAppend && wasShowing) {
+        // Don't blow away existing display; show inline error.
+        setInlineError(`Couldn't add comparison: ${msg}`);
+        setAppendNext(false);
+        // Status stays 'success'
+      } else {
+        setError(msg);
+        setStatus('error');
+      }
     }
+  }
+
+  async function handleSubmit(req: BacktestRequest) {
+    await runOne(req, { append: appendNext });
   }
 
   function handleSelectPreset(key: PresetKey) {
     const req = buildPreset(key);
     formRef.current?.applyRequest(req);
-    void handleSubmit(req);
+    void runOne(req, { append: false, replaceList: true });
+  }
+
+  function handleAddForComparison() {
+    setAppendNext(true);
+  }
+
+  function handleCancelComparison() {
+    setAppendNext(false);
+  }
+
+  function handleRemoveStrategy(idx: number) {
+    setResults((prev) => prev.filter((_, i) => i !== idx));
+    setRequests((prev) => prev.filter((_, i) => i !== idx));
+    setInlineError(null);
+  }
+
+  function handleCopyShareLink() {
+    const url = shareUrl(requests);
+    if (!url) return;
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        setToast('Link copied');
+      } catch {
+        setToast('Could not copy link');
+      }
+    })();
   }
 
   function handleRetry() {
-    if (lastRequest) void handleSubmit(lastRequest);
+    if (requests.length > 0) {
+      const last = requests[requests.length - 1]!;
+      void runOne(last, { append: false, replaceList: true });
+    }
   }
 
   return (
@@ -91,18 +185,23 @@ export default function Page() {
           </aside>
 
           <section className="min-w-0">
-            {status === 'idle' && (
-              <EmptyState onSelectPreset={handleSelectPreset} />
-            )}
+            {status === 'idle' && <EmptyState onSelectPreset={handleSelectPreset} />}
             {status === 'loading' && <LoadingState />}
             {status === 'error' && (
               <ErrorState message={error ?? 'Unknown error'} onRetry={handleRetry} />
             )}
-            {status === 'success' && result && result.results[0] && (
+            {status === 'success' && results.length > 0 && benchmark && (
               <ResultsPanel
-                result={result.results[0]}
-                benchmark={result.benchmark}
-                warnings={result.warnings}
+                results={results}
+                benchmark={benchmark}
+                warnings={warnings}
+                appendNext={appendNext}
+                inlineError={inlineError}
+                onAddForComparison={handleAddForComparison}
+                onRemoveStrategy={handleRemoveStrategy}
+                onCancelComparison={handleCancelComparison}
+                onCopyShareLink={handleCopyShareLink}
+                onDismissInlineError={() => setInlineError(null)}
               />
             )}
           </section>
@@ -112,6 +211,8 @@ export default function Page() {
       <footer className="border-t border-rule px-5 py-3 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint sm:px-8">
         API: {apiStatus === 'checking' ? 'checking…' : apiStatus}
       </footer>
+
+      <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

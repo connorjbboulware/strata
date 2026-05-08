@@ -18,9 +18,10 @@ import {
 
 import type { BenchmarkResult, StrategyResult } from '@/lib/types';
 import { money, pct, pctSigned, shortDate } from '@/lib/format';
+import { STRATEGY_COLORS } from '@/components/MetricsTable';
 
 interface Props {
-  result: StrategyResult;
+  strategies: StrategyResult[];
   benchmark: BenchmarkResult;
 }
 
@@ -29,9 +30,9 @@ const RANGES: RangeKey[] = ['1Y', '3Y', '5Y', 'ALL'];
 
 interface TooltipState {
   date: string;
-  strategyValue: number | null;
+  strategyValues: (number | null)[];
   benchmarkValue: number | null;
-  drawdownValue: number | null;
+  drawdownValue: number | null; // first strategy only
   x: number;
   y: number;
 }
@@ -41,10 +42,10 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-export default function EquityChart({ result, benchmark }: Props) {
+export default function EquityChart({ strategies, benchmark }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const stratSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const stratSeriesRef = useRef<ISeriesApi<'Line'>[]>([]);
   const benchSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const ddSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
 
@@ -53,22 +54,20 @@ export default function EquityChart({ result, benchmark }: Props) {
   const [logScale, setLogScale] = useState(false);
   const [chartHeight, setChartHeight] = useState(480);
 
-  // Track viewport for desktop/mobile height swap
   useEffect(() => {
     function measure() {
-      setChartHeight(window.innerWidth < 640 ? 360 : 480);
+      setChartHeight(window.innerWidth < 640 ? 320 : 480);
     }
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  // Create the chart and all series. Re-runs when data or height changes.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || strategies.length === 0) return;
+    const first = strategies[0]!;
 
-    const accent = cssVar('--accent');
     const tertiary = cssVar('--text-tertiary');
     const secondary = cssVar('--text-secondary');
     const border = cssVar('--border');
@@ -117,18 +116,21 @@ export default function EquityChart({ result, benchmark }: Props) {
     });
     chartRef.current = chart;
 
-    const equityLine = chart.addSeries(
-      LineSeries,
-      {
-        color: accent,
-        lineWidth: 2,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        priceFormat: { type: 'custom', formatter: (v: number) => money(v), minMove: 1 },
-      },
-      0,
+    // Strategy lines (1-3)
+    const stratLines: ISeriesApi<'Line'>[] = strategies.map((s, i) =>
+      chart.addSeries(
+        LineSeries,
+        {
+          color: STRATEGY_COLORS[i] ?? STRATEGY_COLORS[0]!,
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          priceFormat: { type: 'custom', formatter: (v: number) => money(v), minMove: 1 },
+        },
+        0,
+      ),
     );
-    stratSeriesRef.current = equityLine;
+    stratSeriesRef.current = stratLines;
 
     const benchmarkLine = chart.addSeries(
       LineSeries,
@@ -143,6 +145,7 @@ export default function EquityChart({ result, benchmark }: Props) {
     );
     benchSeriesRef.current = benchmarkLine;
 
+    // Drawdown pane: first strategy only
     const drawdownArea = chart.addSeries(
       AreaSeries,
       {
@@ -162,14 +165,16 @@ export default function EquityChart({ result, benchmark }: Props) {
     );
     ddSeriesRef.current = drawdownArea;
 
-    equityLine.setData(
-      result.equity_curve.map((p) => ({ time: p.date as Time, value: p.value })),
-    );
+    strategies.forEach((s, i) => {
+      stratLines[i]!.setData(
+        s.equity_curve.map((p) => ({ time: p.date as Time, value: p.value })),
+      );
+    });
     benchmarkLine.setData(
       benchmark.equity_curve.map((p) => ({ time: p.date as Time, value: p.value })),
     );
     drawdownArea.setData(
-      result.drawdown_series.map((p) => ({ time: p.date as Time, value: p.drawdown })),
+      first.drawdown_series.map((p) => ({ time: p.date as Time, value: p.drawdown })),
     );
 
     const panes = chart.panes();
@@ -178,15 +183,15 @@ export default function EquityChart({ result, benchmark }: Props) {
       panes[1]!.setStretchFactor(3);
     }
 
-    // Watermark (faint copper, italic) — strategy name, bottom-right of equity pane
     if (panes.length >= 1) {
       try {
+        // Watermark uses the first strategy's name (the "anchor" strategy)
         createTextWatermark(panes[0]!, {
           horzAlign: 'right',
           vertAlign: 'bottom',
           lines: [
             {
-              text: result.name,
+              text: first.name,
               color: `rgba(${accentRgb}, 0.18)`,
               fontSize: 28,
               fontFamily: 'var(--font-instrument-serif)',
@@ -195,14 +200,13 @@ export default function EquityChart({ result, benchmark }: Props) {
           ],
         });
       } catch {
-        // plugin not available
+        /* plugin not available */
       }
     }
 
-    // Max-drawdown marker on the drawdown pane
     try {
-      const mddDate = result.metrics.max_drawdown_date;
-      const mddVal = result.metrics.max_drawdown;
+      const mddDate = first.metrics.max_drawdown_date;
+      const mddVal = first.metrics.max_drawdown;
       if (mddDate) {
         const monthYear = new Date(mddDate + 'T00:00:00Z').toLocaleString('en-US', {
           month: 'short',
@@ -213,7 +217,7 @@ export default function EquityChart({ result, benchmark }: Props) {
           {
             time: mddDate as Time,
             position: 'belowBar',
-            color: accent,
+            color: cssVar('--accent'),
             shape: 'arrowUp',
             text: `MAX ${pct(mddVal, 1)} • ${monthYear}`,
             size: 1,
@@ -221,7 +225,7 @@ export default function EquityChart({ result, benchmark }: Props) {
         ]);
       }
     } catch {
-      // plugin not available
+      /* plugin not available */
     }
 
     function handleCrosshair(param: MouseEventParams) {
@@ -229,12 +233,15 @@ export default function EquityChart({ result, benchmark }: Props) {
         setTooltip(null);
         return;
       }
-      const eq = param.seriesData.get(equityLine) as { value: number } | undefined;
+      const stratValues = stratLines.map((s) => {
+        const v = param.seriesData.get(s) as { value: number } | undefined;
+        return v?.value ?? null;
+      });
       const bn = param.seriesData.get(benchmarkLine) as { value: number } | undefined;
       const dd = param.seriesData.get(drawdownArea) as { value: number } | undefined;
       setTooltip({
         date: String(param.time),
-        strategyValue: eq?.value ?? null,
+        strategyValues: stratValues,
         benchmarkValue: bn?.value ?? null,
         drawdownValue: dd?.value ?? null,
         x: param.point.x,
@@ -257,13 +264,12 @@ export default function EquityChart({ result, benchmark }: Props) {
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
-      stratSeriesRef.current = null;
+      stratSeriesRef.current = [];
       benchSeriesRef.current = null;
       ddSeriesRef.current = null;
     };
-  }, [result, benchmark, chartHeight]);
+  }, [strategies, benchmark, chartHeight]);
 
-  // Toggle log scale without recreating
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -274,13 +280,13 @@ export default function EquityChart({ result, benchmark }: Props) {
     });
   }, [logScale]);
 
-  // Apply visible-range preset
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
-    if (result.equity_curve.length === 0) return;
-    const firstDate = result.equity_curve[0]!.date;
-    const lastDate = result.equity_curve[result.equity_curve.length - 1]!.date;
+    if (!chart || strategies.length === 0) return;
+    const first = strategies[0]!;
+    if (first.equity_curve.length === 0) return;
+    const firstDate = first.equity_curve[0]!.date;
+    const lastDate = first.equity_curve[first.equity_curve.length - 1]!.date;
     let fromDate = firstDate;
     if (range !== 'ALL') {
       const years = parseInt(range, 10);
@@ -290,15 +296,15 @@ export default function EquityChart({ result, benchmark }: Props) {
       fromDate = candidate < firstDate ? firstDate : candidate;
     }
     try {
-      chart
-        .timeScale()
-        .setVisibleRange({ from: fromDate as Time, to: lastDate as Time });
+      chart.timeScale().setVisibleRange({ from: fromDate as Time, to: lastDate as Time });
     } catch {
       chart.timeScale().fitContent();
     }
-  }, [range, result]);
+  }, [range, strategies]);
 
-  const initialStrategy = result.equity_curve[0]?.value ?? 0;
+  if (strategies.length === 0) return null;
+
+  const initialStrategyValues = strategies.map((s) => s.equity_curve[0]?.value ?? 0);
   const initialBenchmark = benchmark.equity_curve[0]?.value ?? 0;
 
   return (
@@ -343,10 +349,10 @@ export default function EquityChart({ result, benchmark }: Props) {
       {tooltip && (
         <Tooltip
           tooltip={tooltip}
-          initialStrategy={initialStrategy}
+          strategies={strategies}
+          initialStrategyValues={initialStrategyValues}
           initialBenchmark={initialBenchmark}
           benchmarkSymbol={benchmark.symbol}
-          strategyName={result.name}
           chartWidth={containerRef.current?.clientWidth ?? 0}
           chartHeight={chartHeight}
         />
@@ -357,32 +363,35 @@ export default function EquityChart({ result, benchmark }: Props) {
 
 function Tooltip({
   tooltip,
-  initialStrategy,
+  strategies,
+  initialStrategyValues,
   initialBenchmark,
   benchmarkSymbol,
-  strategyName,
   chartWidth,
   chartHeight,
 }: {
   tooltip: TooltipState;
-  initialStrategy: number;
+  strategies: StrategyResult[];
+  initialStrategyValues: number[];
   initialBenchmark: number;
   benchmarkSymbol: string;
-  strategyName: string;
   chartWidth: number;
   chartHeight: number;
 }) {
-  const TOOLTIP_W = 250;
+  const TOOLTIP_W = 260;
   const left = Math.min(
     Math.max(tooltip.x + 14, 8),
     Math.max(8, chartWidth - TOOLTIP_W - 8),
   );
-  const top = Math.min(Math.max(tooltip.y - 16, 8), Math.max(8, chartHeight - 130));
+  const top = Math.min(
+    Math.max(tooltip.y - 16, 8),
+    Math.max(8, chartHeight - 50 - 28 * strategies.length),
+  );
 
-  const stratReturn =
-    tooltip.strategyValue != null && initialStrategy > 0
-      ? tooltip.strategyValue / initialStrategy - 1
-      : null;
+  const stratReturns = tooltip.strategyValues.map((v, i) => {
+    const init = initialStrategyValues[i] ?? 0;
+    return v != null && init > 0 ? v / init - 1 : null;
+  });
   const benchReturn =
     tooltip.benchmarkValue != null && initialBenchmark > 0
       ? tooltip.benchmarkValue / initialBenchmark - 1
@@ -396,14 +405,17 @@ function Tooltip({
       <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
         {shortDate(tooltip.date)}
       </div>
+      {strategies.map((s, i) => (
+        <Row
+          key={s.name + i}
+          color={STRATEGY_COLORS[i] ?? STRATEGY_COLORS[0]!}
+          label={s.name}
+          value={tooltip.strategyValues[i] ?? null}
+          delta={stratReturns[i] ?? null}
+        />
+      ))}
       <Row
-        dotClass="bg-accent"
-        label={strategyName}
-        value={tooltip.strategyValue}
-        delta={stratReturn}
-      />
-      <Row
-        dotClass="bg-ink-faint"
+        color="var(--text-tertiary)"
         label={benchmarkSymbol}
         value={tooltip.benchmarkValue}
         delta={benchReturn}
@@ -423,19 +435,22 @@ function Tooltip({
 }
 
 function Row({
-  dotClass,
+  color,
   label,
   value,
   delta,
 }: {
-  dotClass: string;
+  color: string;
   label: string;
   value: number | null;
   delta: number | null;
 }) {
   return (
     <div className="flex items-center gap-2 py-0.5">
-      <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+      <span
+        className="inline-block h-2 w-2 shrink-0 rounded-full"
+        style={{ background: color }}
+      />
       <span className="flex-1 truncate text-ink-muted">{label}</span>
       <span className="font-mono tabular-nums text-ink">
         {value != null ? money(value) : '—'}

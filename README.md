@@ -1,80 +1,72 @@
 # Strata
 
-Web-based portfolio backtester. Strategy in, equity curve out — plus rolling Sharpe, monthly-return heatmap, drawdown subchart, and the rest of the standard quant deck.
+Web-based portfolio backtester. Compose a strategy, run it against a decade of real market data, see the metrics quants care about.
 
-**Live demo:** _coming soon_
+![Strata results panel](docs/screenshots/v1-loaded.png)
 
-![Strata — loaded](docs/screenshots/v1-loaded-fixed.png)
+**Live demo:** _placeholder — link goes here after Vercel deploy_
 
-![Strata — empty state with presets](docs/screenshots/v1-empty-v2.png)
+**Try a preset:**
+Copy any of the hashes below and append to the live demo URL (e.g. `https://strata.example.com/#config=…`).
 
-## Tech stack
+- **Mag 7 vs SPY** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6Ik1hZ25pZmljZW50IDciLCJ0aWNrZXJzIjpbIkFBUEwiLCJNU0ZUIiwiR09PR0wiLCJBTVpOIiwiTlZEQSIsIk1FVEEiLCJUU0xBIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE4LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6Im1vbnRobHkifV0sImJlbmNobWFyayI6IlNQWSJ9XX0`
+- **60/40 Classic** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IjYwLzQwIFBvcnRmb2xpbyIsInRpY2tlcnMiOlsiVlRJIiwiQk5EIl0sIndlaWdodHMiOlswLjYsMC40XSwic3RhcnRfZGF0ZSI6IjIwMTAtMDEtMDQiLCJlbmRfZGF0ZSI6IjIwMjYtMDUtMDciLCJpbml0aWFsX2NhcGl0YWwiOjEwMDAwLCJyZWJhbGFuY2VfZnJlcXVlbmN5IjoicXVhcnRlcmx5In1dLCJiZW5jaG1hcmsiOiJTUFkifV19`
+- **Sector Rotation** — `#config=eyJ2IjoxLCJyZXF1ZXN0cyI6W3sic3RyYXRlZ2llcyI6W3sibmFtZSI6IlNlY3RvciBSb3RhdGlvbiIsInRpY2tlcnMiOlsiWExLIiwiWExGIiwiWExFIiwiWExWIiwiWExJIiwiWExQIiwiWExZIiwiWExCIiwiWExVIl0sIndlaWdodHMiOiJlcXVhbCIsInN0YXJ0X2RhdGUiOiIyMDE1LTAxLTAyIiwiZW5kX2RhdGUiOiIyMDI2LTA1LTA3IiwiaW5pdGlhbF9jYXBpdGFsIjoxMDAwMCwicmViYWxhbmNlX2ZyZXF1ZW5jeSI6InF1YXJ0ZXJseSJ9XSwiYmVuY2htYXJrIjoiU1BZIn1dfQ`
+
+(Regenerate any time with `uv run python scripts/build_share_links.py`.)
+
+## What it does
+
+Pick tickers, weights, date range, rebalance schedule, and a benchmark. Strata runs the backtest off real adjusted-close prices (yfinance, with a Postgres cache so the live demo doesn't block on remote fetches) and returns the equity curve, drawdown series, monthly returns, and the eight metrics on the standard quant deck — CAGR, Sharpe, Sortino, max drawdown, alpha, beta, R², annualised volatility. Three demo presets ship by default; up to three strategies can be overlaid on the same chart for comparison.
+
+## Stack
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js 15 (App Router), React 18, TypeScript strict |
+| Frontend | Next.js 15 App Router + React 18 + TypeScript strict |
 | Styling | Tailwind v3.4, CSS variables, Instrument Serif + Geist + Geist Mono |
-| Charts | TradingView Lightweight Charts v5 (equity + drawdown), Recharts (histogram, rolling Sharpe), CSS grid (heatmap) |
-| Backend | FastAPI (Python 3.12), Pydantic v2 |
-| Data | yfinance for fetch, Postgres (Supabase) as cache, psycopg 3 + psycopg-pool |
-| Math | numpy, pandas (pinned <3.0) |
+| Charts | Lightweight Charts v5 (equity + drawdown), Recharts (histogram, rolling Sharpe), CSS grid (heatmap) |
+| Backend | FastAPI on Vercel Python serverless functions |
+| Database | Supabase Postgres, transaction pooler |
+| Data | yfinance behind a Postgres cache |
+| Quant | numpy, pandas (pinned <3.0) |
 | Validation | Zod (frontend), Pydantic (backend) |
-| Deploy | Vercel (Next.js + Python serverless functions) |
-| Local dev | uv-managed Python 3.12 venv |
 
-## Architecture notes
+## What's interesting in this codebase
 
-The interesting decisions, not the obvious ones:
+- **Postgres-backed yfinance cache, with `cursor.executemany` ditched in favor of chunked multi-row INSERT (~500× faster) and a `NUMERIC::float8` cast in SELECT (~10× faster).** Per-row `executemany` against the Supabase transaction pooler is one round-trip per row — three minutes per ticker for a 10-year backfill. Switched to 500-row INSERT statements and ingest dropped to a few seconds. Once cached, every NUMERIC column is cast to float8 in the SELECT itself so psycopg returns native Python floats; building 12 000+ Decimals per query was the second-largest cost. Combined, warm `get_prices` for 8 tickers × 7 years went from 40 s to 3 s. See [api/data/cache.py](api/data/cache.py).
+- **Module-scope `psycopg_pool.ConnectionPool` with FastAPI lifespan management.** Cold connections to Supabase's pooler take 5–7 s; the pool keeps warm ones around so the actual request path stays fast. `max_idle=300` is tuned below Supabase's server-side close so we don't hand out dead connections, plus an active `check_connection` callback and a one-shot retry middleware on GET catch the residual race.
+- **Linear alpha annualisation (α_daily × 252) and canonical Sortino formulation.** Both per the textbook conventions, both documented inline next to the math, both unit-tested. The Sortino denominator averages over **all** observations with positives clipped to zero, not just the negative subset — a real distinction with a √(N/N_neg) magnitude.
+- **Lightweight Charts v5 with paired drawdown subchart and synced crosshair across panes.** Equity above, drawdown below, both in canvas, custom React tooltip card overlaid via `subscribeCrosshairMove`. Not a wrapped Recharts default — the v4→v5 API change retired `addLineSeries` in favor of `addSeries(LineSeries, …)` and moved watermarks + markers to plugins.
+- **Pre-warm script primes 31 popular tickers into the cache before deploy** ([scripts/prewarm.py](scripts/prewarm.py)), so the live demo never blocks on yfinance under user latency. Idempotent — re-running it is mostly cache reads.
 
-- **Postgres-backed cache for yfinance**, with a `bulk_get_cached(symbols, start, end)` that returns one DataFrame keyed by symbol from a single query. Per-row `cursor.executemany` against the Supabase transaction pooler is **brutally slow** (one round-trip per row, ~3 minutes per ticker). Switched to chunked multi-row INSERTs (500 rows/statement) for a **~500× speedup** on cold backfill. See [api/data/cache.py](api/data/cache.py).
-- **`NUMERIC::float8` cast in SELECT** so psycopg returns native Python `float`s instead of `Decimal`. Constructing 12,000+ Decimals on every cache read was a 2.5 s/query cost; casting to float8 in the SQL drops that to ~250 ms. Combined with the bulk-symbol query, warm `get_prices` for 8 tickers × 7 years went from **40 s → 3 s**.
-- **Linear alpha annualisation (`α_daily × 252`)** per CAPM convention — that's what Bloomberg defaults to. The geometric `(1 + α_daily)^252 − 1` form compounds the regression-noise more aggressively at high N.
-- **Canonical Sortino (1980)**: denominator is `sqrt(mean(min(excess, 0)^2))` averaged over **all N** observations (positives clipped to 0), not the subset-only `sqrt(mean(neg^2 | neg < 0))`. The two differ by `sqrt(N_total / N_neg)`; I had a buggy version that returned the smaller subset-only ratio for a while. See [api/engine/metrics.py](api/engine/metrics.py).
-- **Module-scope `psycopg_pool.ConnectionPool`** with FastAPI lifespan management — `connect_timeout=10`, `min_size=1`, `max_size=5`. Cold connections to the Supabase pooler take ~5–7 s; the pool keeps warm ones around so the actual request path is fast. Important for serverless because each invocation reuses the warm pool when the function instance survives.
-- **Frontend Zod schemas as a runtime gate** on every API response. If the API ever drifts from the contract, the UI fails loudly with a typed error instead of producing garbage charts.
+## Methodology
+
+- **Returns** are computed off adjusted close (yfinance's `Adj Close`); dividends and splits are reinvested into the price series.
+- **Sharpe ratio**: `sqrt(252) · mean(excess) / sample_std(excess)`. Sample std uses Bessel's correction (ddof = 1). `excess = daily_return − rf/252`. Default `rf = 0`.
+- **Sortino ratio (canonical 1980)**: same numerator, denominator is `sqrt(mean(min(excess, 0)^2))` over **all** observations.
+- **Alpha** annualised linearly: `α_annual = α_daily · 252`, from an OLS regression of strategy excess returns on benchmark excess returns. Beta is the OLS slope. R² from residuals.
+- **Volatility**: `sample_std(daily_returns) · sqrt(252)`.
+- **Max drawdown**: `min(equity / cummax(equity) − 1)`.
+- **CAGR**: `(equity_end / equity_start)^(1 / years) − 1`, where `years = (end_date − start_date).days / 365.25`.
 
 ## Local development
 
 ```bash
-git clone https://github.com/connorjbboulware/strata.git
-cd strata
-
-# Python (uv handles the venv + 3.12)
-uv sync
-
-# Node
-npm install
-
-# Env vars — fill in your Supabase pooler URL
-cp .env.example .env
-# edit .env: DATABASE_URL=postgresql://postgres.<ref>:<pw>@<pooler-host>:6543/postgres
-
-# Optional: prime the cache for the demo
-uv run python scripts/prewarm.py
-
-# Run both servers (separate terminals)
-uv run uvicorn api.index:app --port 8000 --reload
-npm run dev
+git clone https://github.com/connorjbboulware/strata.git && cd strata
+npm install && uv sync
+cp .env.example .env  # then fill in DATABASE_URL with your Supabase pooler URI
+uv run uvicorn api.index:app --port 8000 --reload   # in one terminal
+npm run dev                                          # in another
 ```
 
-Open http://localhost:3000.
+Open <http://localhost:3000>. Optionally prime the cache for the demo with `uv run python scripts/prewarm.py` (~5 min cold, ~30 s warm).
 
-`next dev` proxies `/api/*` to `localhost:8000` via [next.config.js](next.config.js); on Vercel the same path is rewritten to `api/index.py` via [vercel.json](vercel.json).
+## Future work
 
-## Methodology
-
-- **Returns** are computed off **adjusted close** (yfinance's `Adj Close` column, not raw `Close`). Dividends and splits are reinvested into the price series, so the equity curve reflects total return including reinvested distributions.
-- **Sharpe ratio**: `sqrt(252) · mean(excess) / sample_std(excess)`. `excess = daily_return − rf/252`. Default `rf = 0`. Sample std uses Bessel's correction (ddof = 1).
-- **Sortino ratio**: same numerator, denominator is the downside deviation `sqrt(mean_i(min(excess_i, 0)^2))` over all observations.
-- **Alpha** annualised linearly: `α_annual = α_daily · 252` from an OLS regression of strategy excess returns on benchmark excess returns. Beta is the OLS slope. R² from residuals.
-- **Volatility**: `sample_std(daily_returns) · sqrt(252)`.
-- **Max drawdown**: minimum of `equity / cummax(equity) − 1` (always ≤ 0).
-- **CAGR**: `(equity_end / equity_start)^(1 / years) − 1` where `years = (end_date − start_date).days / 365.25`.
-
-## Tests
-
-```bash
-uv run pytest api/tests/ -v
-```
-
-Pure-Python unit tests for the metric calculations, rebalance schedule generation, and a synthetic-price buy-and-hold walk-through. No DB, no network.
+- Monte Carlo simulation for return distributions across drawdowns
+- Walk-forward / out-of-sample testing
+- Transaction costs and turnover penalties
+- Intraday data (currently daily-only)
+- Factor decomposition (Fama-French 3- and 5-factor)
+- User accounts and saved strategies

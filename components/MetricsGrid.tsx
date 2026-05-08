@@ -117,7 +117,7 @@ export default function MetricsGrid({ metrics, benchmarkMetrics, benchmarkSymbol
   ];
 
   return (
-    <dl className="grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
+    <dl className="grid grid-cols-2 md:grid-cols-4 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
       {cells.map((cell, i) => (
         <div key={cell.label} className="flex flex-col gap-1 bg-panel px-4 py-4">
           <dt className="text-[10px] uppercase tracking-[0.16em] text-ink-faint">

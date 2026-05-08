@@ -21,6 +21,13 @@ def open_pool(settings: Settings) -> Optional[ConnectionPool]:
         min_size=1,
         max_size=5,
         timeout=10.0,
+        # Recycle idle connections after 5 minutes — comfortably below Supabase's
+        # ~10-minute server-side close, so we never hand out a dead connection.
+        max_idle=300.0,
+        # Active liveness check before yielding to the caller — replaces a stale
+        # connection transparently. Catches the residual race where a connection
+        # dies mid-idle within the max_idle window (network blips, etc.).
+        check=ConnectionPool.check_connection,
         kwargs={"connect_timeout": 10},
         open=False,
     )

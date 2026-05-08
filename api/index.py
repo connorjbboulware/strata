@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 
+import psycopg
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 # Load .env before importing modules that read env (config, db)
@@ -11,6 +13,8 @@ from .config import load_settings  # noqa: E402
 from .db import close_pool, get_conn, init_schema, open_pool  # noqa: E402
 from .routes import backtest as backtest_routes  # noqa: E402
 from .routes import health as health_routes  # noqa: E402
+
+logger = logging.getLogger("strata.api")
 
 
 @asynccontextmanager
@@ -35,6 +39,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def retry_db_errors_on_get(request: Request, call_next):
+    """
+    Retry once on psycopg.OperationalError for read endpoints (GET only).
+
+    The pool's `check_connection` covers the common case, but a transient
+    network blip *during* a query can still surface here. Idempotent reads
+    are safe to retry; POST /backtest is not (idempotency concern).
+    """
+    if request.method != "GET":
+        return await call_next(request)
+    try:
+        return await call_next(request)
+    except psycopg.OperationalError as exc:
+        logger.warning(
+            "psycopg.OperationalError on GET %s — retrying once: %s",
+            request.url.path,
+            exc,
+        )
+        return await call_next(request)
+
 
 app.include_router(health_routes.router)
 app.include_router(backtest_routes.router)

@@ -102,12 +102,10 @@ export default function MonthlyHeatmap({ monthlyReturns }: Props) {
                 {row.monthly.map((v, mi) => (
                   <td
                     key={mi}
-                    className="rounded text-center font-mono text-[10px] tabular-nums leading-none transition-colors"
+                    className="h-7 min-w-[28px] rounded text-center font-mono text-[9px] tabular-nums leading-none transition-colors sm:h-[30px] sm:min-w-[44px] sm:text-[10px]"
                     style={{
                       background: cellColor(v),
-                      color: v == null ? 'transparent' : v >= 0 ? 'var(--text-primary)' : 'var(--text-primary)',
-                      height: 30,
-                      minWidth: 44,
+                      color: v == null ? 'transparent' : 'var(--text-primary)',
                     }}
                     onMouseEnter={() => v != null && setHover({ year: row.year, month: mi, value: v, isAnnual: false })}
                     onMouseLeave={() => setHover(null)}
@@ -116,12 +114,10 @@ export default function MonthlyHeatmap({ monthlyReturns }: Props) {
                   </td>
                 ))}
                 <td
-                  className="rounded border-l border-rule text-center font-mono text-[10px] font-medium tabular-nums leading-none"
+                  className="h-7 min-w-[40px] rounded border-l border-rule text-center font-mono text-[9px] font-medium tabular-nums leading-none sm:h-[30px] sm:min-w-[56px] sm:text-[10px]"
                   style={{
                     background: cellColor(row.annual),
                     color: row.annual == null ? 'transparent' : 'var(--text-primary)',
-                    height: 30,
-                    minWidth: 56,
                   }}
                   onMouseEnter={() => row.annual != null && setHover({ year: row.year, month: -1, value: row.annual, isAnnual: true })}
                   onMouseLeave={() => setHover(null)}
