@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Backdrop matches the project's bg-elevated token (#14110f). Hard-coded
+       because a favicon SVG paints in its own context and can't read the
+       document's CSS variables. -->
+  <rect width="32" height="32" fill="#14110f"/>
+  <!-- Four sedimentary bands, varying heights, 1px gaps between, the warm
+       mid-band (burnt sienna) the most prominent: -->
+  <rect x="0" y="5"  width="32" height="5" fill="#3a3530"/>  <!-- slate -->
+  <rect x="0" y="11" width="32" height="4" fill="#4a3328"/>  <!-- umber -->
+  <rect x="0" y="16" width="32" height="6" fill="#5e3a2f"/>  <!-- burnt sienna -->
+  <rect x="0" y="23" width="32" height="4" fill="#7a5a3d"/>  <!-- ochre -->
+</svg>
